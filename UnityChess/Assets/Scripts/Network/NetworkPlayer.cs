@@ -7,87 +7,58 @@ public class NetworkPlayer : NetworkBehaviour
 {
     public static NetworkPlayer LocalInstance;
 
-    // We'll store the local user ID in PlayerPrefs so it persists across Play sessions.
-    private static string localUserId;
+    public NetworkVariable<FixedString64Bytes> PlayerUniqueID = new("", NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+    public NetworkVariable<bool> IsWhite = new(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
-    public NetworkVariable<FixedString64Bytes> PlayerUniqueID = new NetworkVariable<FixedString64Bytes>(
-        new FixedString64Bytes(""),
-        NetworkVariableReadPermission.Everyone,
-        NetworkVariableWritePermission.Server
-    );
-
-    public NetworkVariable<bool> IsWhite = new NetworkVariable<bool>(
-        false,
-        NetworkVariableReadPermission.Everyone,
-        NetworkVariableWritePermission.Server
-    );
+    private const string UserIdKey = "LocalUserId";
 
     public override void OnNetworkSpawn()
     {
-        // SERVER: subscribe to ID changes
         if (IsServer)
-        {
             PlayerUniqueID.OnValueChanged += OnPlayerUniqueIDChanged;
-        }
 
-        // If I'm the owner, set my local user ID if needed
         if (IsOwner)
         {
             LocalInstance = this;
-            StartCoroutine(DelayedSetID());
+            Invoke(nameof(SetupPlayer), 0.1f);
         }
     }
 
-    // Wait 1 frame so the object is fully spawned, then set the ID
-    private IEnumerator DelayedSetID()
+    private void SetupPlayer()
     {
-        yield return null; // wait one frame
-
-        // 1) Load from PlayerPrefs if we haven't already
-        if (string.IsNullOrEmpty(localUserId))
+        string userId = PlayerPrefs.GetString(UserIdKey, "");
+        if (string.IsNullOrEmpty(userId))
         {
-            localUserId = PlayerPrefs.GetString("LocalUserId", "");
-            if (string.IsNullOrEmpty(localUserId))
-            {
-                // If none stored, generate once
-                localUserId = "User_" + Random.Range(1000,9999);
-                PlayerPrefs.SetString("LocalUserId", localUserId);
-                PlayerPrefs.Save();
-            }
+            userId = $"User_{Random.Range(1000, 9999)}";
+            PlayerPrefs.SetString(UserIdKey, userId);
         }
 
-        // 2) Now call the server RPC to set the ID
         SetPlayerColorServerRpc();
-        SetPlayerUniqueIdServerRpc(localUserId);
+        SetPlayerUniqueIdServerRpc(userId);
     }
 
-    // Called on the server side when PlayerUniqueID changes
     private void OnPlayerUniqueIDChanged(FixedString64Bytes oldVal, FixedString64Bytes newVal)
     {
         string newID = newVal.ToString();
         if (!string.IsNullOrEmpty(newID))
         {
-            Debug.Log($"[Server] OnPlayerUniqueIDChanged => {OwnerClientId} => {newID}");
+            Debug.Log($"[Server] Unique ID updated: {OwnerClientId} => {newID}");
             NetworkChessManager.Instance.HandlePlayerIDSet(OwnerClientId, newID);
         }
     }
 
     [ServerRpc(RequireOwnership = false)]
-    private void SetPlayerUniqueIdServerRpc(string newId)
+    private void SetPlayerUniqueIdServerRpc(string id)
     {
-        PlayerUniqueID.Value = newId;
-        Debug.Log($"[Server] Assigned ID '{newId}' to player {OwnerClientId}");
+        PlayerUniqueID.Value = id;
+        Debug.Log($"[Server] Set ID '{id}' for player {OwnerClientId}");
     }
 
     [ServerRpc(RequireOwnership = false)]
     private void SetPlayerColorServerRpc()
     {
-        // Basic logic: first connection => White, second => Black
         IsWhite.Value = NetworkManager.Singleton.ConnectedClients.Count <= 1;
     }
 
-    public bool IsMyTurn()
-    {
-        return TurnManager.Instance.CanMove(IsWhite.Value);
-    }
+    public bool IsMyTurn() => TurnManager.Instance.CanMove(IsWhite.Value);
 }

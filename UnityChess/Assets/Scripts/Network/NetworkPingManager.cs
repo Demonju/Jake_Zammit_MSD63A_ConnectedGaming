@@ -1,56 +1,46 @@
 using Unity.Netcode;
 using UnityEngine;
-using UnityEngine.UI;
-using System.Collections;
 using TMPro;
+using System.Collections;
 
 public class NetworkPingManager : NetworkBehaviour
 {
-    [SerializeField] private TMP_Text pingText;  
+    [SerializeField] private TMP_Text pingText;
     [SerializeField] private float pingInterval = 2f;
 
-    private float pingTimer = 0f;
-
-    void Update()
+    private void Start()
     {
-        if (IsOwner && IsClient)
+        if (IsClient)
+            StartCoroutine(PingLoop());
+    }
+
+    private IEnumerator PingLoop()
+    {
+        while (true)
         {
-            pingTimer += Time.deltaTime;
-            if (pingTimer >= pingInterval)
-            {
-                pingTimer = 0f;
-                float clientTime = Time.realtimeSinceStartup;
-                PingServerRpc(clientTime);
-            }
+            float clientTime = Time.realtimeSinceStartup;
+            PingServerRpc(clientTime);
+            yield return new WaitForSeconds(pingInterval);
         }
     }
 
     [ServerRpc(RequireOwnership = false)]
-    private void PingServerRpc(float clientTime, ServerRpcParams serverRpcParams = default)
+    private void PingServerRpc(float clientTime, ServerRpcParams rpcParams = default)
     {
-        ulong senderClientId = serverRpcParams.Receive.SenderClientId;
         float serverTime = Time.realtimeSinceStartup;
         float halfTrip = serverTime - clientTime;
-        
-        PongClientRpc(halfTrip, senderClientId);
+        PongClientRpc(halfTrip, rpcParams.Receive.SenderClientId);
     }
 
     [ClientRpc]
-    private void PongClientRpc(float halfTrip, ulong targetClientId, ClientRpcParams clientRpcParams = default)
+    private void PongClientRpc(float halfTrip, ulong targetClientId, ClientRpcParams rpcParams = default)
     {
-        if (NetworkManager.Singleton.LocalClientId != targetClientId)
-            return;
-        
-        float approxRtt = halfTrip * 2f;
-        float ms = approxRtt * 1000f;
+        if (NetworkManager.Singleton.LocalClientId != targetClientId) return;
 
+        float ms = halfTrip * 2f * 1000f;
         if (pingText != null)
-        {
             pingText.text = $"Ping: {ms:0.0} ms";
-        }
         else
-        {
-            Debug.LogWarning("[Client] pingText is null, can't display ping");
-        }
+            Debug.LogWarning("[Client] pingText is null.");
     }
 }
