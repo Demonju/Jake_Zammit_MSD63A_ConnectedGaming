@@ -89,9 +89,34 @@ public class BoardManager : MonoBehaviourSingleton<BoardManager>
         VisualPiece vp = pieceGO.GetComponent<VisualPiece>();
         if (vp != null)
         {
-            vp.PieceColor = piece.Owner; 
+            vp.PieceColor = piece.Owner;
+
+            // ✅ Apply current skin material if exists
+            if (SkinLoader.Instance.CurrentMaterial != null)
+            {
+                var renderer = pieceGO.GetComponent<MeshRenderer>(); // Use MeshRenderer for 3D pieces
+                if (renderer != null)
+                {
+                    renderer.material = SkinLoader.Instance.CurrentMaterial;
+                }
+            }
         }
     }
+
+
+    private void ApplySkinToPiece(GameObject pieceGO)
+    {
+        if (SkinLoader.Instance.CurrentMaterial != null)
+        {
+            var renderer = pieceGO.GetComponent<SpriteRenderer>();
+            if (renderer != null)
+            {
+                renderer.material = SkinLoader.Instance.CurrentMaterial;
+            }
+        }
+    }
+
+
 
     public void GetSquareGOsWithinRadius(List<GameObject> squareGOs, Vector3 positionWS, float radius)
     {

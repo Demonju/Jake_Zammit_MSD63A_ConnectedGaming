@@ -9,7 +9,7 @@ public class CreditsManager : MonoBehaviour
 
     [SerializeField] private TMP_Text creditsText;
 
-    public int credits = 1000;
+    public int credits = 4000;
 
     private void Awake()
     {
@@ -19,7 +19,13 @@ public class CreditsManager : MonoBehaviour
 
     private void Start()
     {
-        credits = PlayerPrefs.GetInt("Credits", 1000);
+        credits = PlayerPrefs.GetInt("Credits", 4000);
+
+        //Remove after testing
+        PlayerPrefs.SetInt("Credits", 4000);
+        PlayerPrefs.Save();
+        credits = 4000;
+
     }
 
     void Update()
@@ -41,7 +47,7 @@ public class CreditsManager : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("[CreditsManager] Not enough coins!");
+            Debug.LogWarning("[CreditsManager] Not enough credits!");
             return false;
         }
     }
