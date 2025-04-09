@@ -8,8 +8,8 @@ public class NetworkChessManager : NetworkBehaviour
 {
     public static NetworkChessManager Instance;
 
-    [SerializeField] private Button hostButton;
-    [SerializeField] private Button joinButton;
+    [SerializeField] private Button hostButton; 
+    [SerializeField] private Button joinButton; 
 
     private Dictionary<string, ulong> persistentPlayers = new Dictionary<string, ulong>();
 
@@ -100,7 +100,7 @@ public class NetworkChessManager : NetworkBehaviour
             SendBoardToReconnectingClient(clientId);
         }
     }
-
+    
     private void OnClientDisconnected(ulong clientId)
     {
         Debug.Log($"[Server] Player {clientId} disconnected.");
@@ -132,7 +132,7 @@ public class NetworkChessManager : NetworkBehaviour
 
         SyncBoardToOneClientRpc(fenOrPgn, sendParams);
     }
-
+    
     [ClientRpc]
     private void SyncBoardToOneClientRpc(string serializedBoard, ClientRpcParams clientRpcParams = default)
     {
@@ -161,7 +161,7 @@ public class NetworkChessManager : NetworkBehaviour
         }
 
         Square startSquare = new Square(from.x, from.y);
-        Square endSquare = new Square(to.x, to.y);
+        Square endSquare   = new Square(to.x, to.y);
 
         if (!GameManager.Instance.game.TryGetLegalMove(startSquare, endSquare, out Movement move))
         {
@@ -176,14 +176,14 @@ public class NetworkChessManager : NetworkBehaviour
             return;
         }
 
-        NetworkTurnManager.Instance.EndTurnServerRpc();
+        TurnManager.Instance.EndTurnServerRpc();
 
         Side sideToMove = GameManager.Instance.SideToMove;
         UpdateBoardStateClientRpc(sideToMove);
 
         UpdateBoardClientRpc(from, to);
     }
-
+    
     [ServerRpc(RequireOwnership = false)]
     public void ResignServerRpc(ulong resigningClientId)
     {
@@ -196,14 +196,14 @@ public class NetworkChessManager : NetworkBehaviour
 
         AnnounceOutcomeServerRpc($"{winningSide} wins by resignation! ({resigningSide} resigned)");
     }
-
+    
     [ServerRpc(RequireOwnership = false)]
     public void AnnounceOutcomeServerRpc(string outcomeMessage)
     {
         // This calls a ClientRpc to show the outcome
         AnnounceOutcomeClientRpc(outcomeMessage);
     }
-
+    
     [ClientRpc]
     private void AnnounceOutcomeClientRpc(string outcomeMessage)
     {
@@ -212,7 +212,7 @@ public class NetworkChessManager : NetworkBehaviour
         BoardManager.Instance.SetActiveAllPieces(false);
         UIManager.Instance.DisableResignButton();
     }
-
+  
     [ClientRpc]
     private void UpdateBoardClientRpc(Vector2Int from, Vector2Int to)
     {

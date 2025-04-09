@@ -53,24 +53,36 @@ public class VisualPiece : MonoBehaviour {
 	/// Called when the user presses the mouse button over the piece.
 	/// Records the initial screen-space position of the piece.
 	/// </summary>
-	public void OnMouseDown() {
-		if (enabled) {
-			// Convert the world position of the piece to screen-space and store it.
-			piecePositionSS = boardCamera.WorldToScreenPoint(transform.position);
-		}
+	public void OnMouseDown()
+	{
+		// If the script is disabled, OnMouseDown still fires but we can bail out quickly
+		if (!enabled) return;
+
+		if (NetworkPlayer.LocalInstance == null) return;
+
+		// Check local turn logic
+		bool myTurn = NetworkPlayer.LocalInstance.IsMyTurn();
+		bool iAmWhite = NetworkPlayer.LocalInstance.IsWhite.Value;
+		if (!myTurn) return; // Not my turn
+		if (iAmWhite && PieceColor == Side.Black) return; // Wrong color
+		if (!iAmWhite && PieceColor == Side.White) return; // Wrong color
+
+		// We can pick up the piece
+		piecePositionSS = boardCamera.WorldToScreenPoint(transform.position);
 	}
 
 	/// <summary>
 	/// Called while the user drags the piece with the mouse.
 	/// Updates the piece's world position to follow the mouse cursor.
 	/// </summary>
-	private void OnMouseDrag() {
-		if (enabled) {
-			// Create a new screen-space position based on the current mouse position,
-			// preserving the original depth (z-coordinate).
-			Vector3 nextPiecePositionSS = new Vector3(Input.mousePosition.x, Input.mousePosition.y, piecePositionSS.z);
-			// Convert the screen-space position back to world-space and update the piece's position.
-			thisTransform.position = boardCamera.ScreenToWorldPoint(nextPiecePositionSS);
+	private void OnMouseDrag()
+	{
+		// If script is disabled, do nothing
+		if (!enabled) return;
+		if (Input.GetMouseButton(0))
+		{
+			Vector3 nextPosSS = new Vector3(Input.mousePosition.x, Input.mousePosition.y, piecePositionSS.z);
+			thisTransform.position = boardCamera.ScreenToWorldPoint(nextPosSS);
 		}
 	}
 
@@ -78,39 +90,43 @@ public class VisualPiece : MonoBehaviour {
 	/// Called when the user releases the mouse button after dragging the piece.
 	/// Determines the closest board square to the piece and raises an event with the move.
 	/// </summary>
-	public void OnMouseUp() {
-		if (enabled) {
-			// Clear any previous potential landing square candidates.
-			potentialLandingSquares.Clear();
-			// Obtain all square GameObjects within the collision radius of the piece's current position.
-			BoardManager.Instance.GetSquareGOsWithinRadius(potentialLandingSquares, thisTransform.position, SquareCollisionRadius);
+	public void OnMouseUp()
+	{
+		if (!enabled) return;
 
-			// If no squares are found, assume the piece was moved off the board and reset its position.
-			if (potentialLandingSquares.Count == 0) { // piece moved off board
-				thisTransform.position = thisTransform.parent.position;
-				return;
-			}
-	
-			// Determine the closest square from the list of potential landing squares.
-			Transform closestSquareTransform = potentialLandingSquares[0].transform;
-			// Calculate the square of the distance between the piece and the first candidate square.
-			float shortestDistanceFromPieceSquared = (closestSquareTransform.position - thisTransform.position).sqrMagnitude;
-			
-			// Iterate through remaining potential squares to find the closest one.
-			for (int i = 1; i < potentialLandingSquares.Count; i++) {
-				GameObject potentialLandingSquare = potentialLandingSquares[i];
-				// Calculate the squared distance from the piece to the candidate square.
-				float distanceFromPieceSquared = (potentialLandingSquare.transform.position - thisTransform.position).sqrMagnitude;
+		potentialLandingSquares.Clear();
+		BoardManager.Instance.GetSquareGOsWithinRadius(
+			potentialLandingSquares, thisTransform.position, SquareCollisionRadius
+		);
 
-				// If the current candidate is closer than the previous closest, update the closest square.
-				if (distanceFromPieceSquared < shortestDistanceFromPieceSquared) {
-					shortestDistanceFromPieceSquared = distanceFromPieceSquared;
-					closestSquareTransform = potentialLandingSquare.transform;
-				}
-			}
-
-			// Raise the VisualPieceMoved event with the initial square, the piece's transform, and the closest square transform.
-			VisualPieceMoved?.Invoke(CurrentSquare, thisTransform, closestSquareTransform);
+		if (potentialLandingSquares.Count == 0)
+		{
+			// No squares => reset
+			thisTransform.position = thisTransform.parent.position;
+			return;
 		}
+
+		// Find closest square
+		Transform closestSquareTransform = potentialLandingSquares[0].transform;
+		float shortestDistSqr = (closestSquareTransform.position - thisTransform.position).sqrMagnitude;
+		for (int i = 1; i < potentialLandingSquares.Count; i++)
+		{
+			float distSqr = (potentialLandingSquares[i].transform.position - thisTransform.position).sqrMagnitude;
+			if (distSqr < shortestDistSqr)
+			{
+				shortestDistSqr = distSqr;
+				closestSquareTransform = potentialLandingSquares[i].transform;
+			}
+		}
+
+		// Convert to Vector2Int
+		Square oldSquare = StringToSquare(transform.parent.name);
+		Vector2Int from = new Vector2Int(oldSquare.File, oldSquare.Rank);
+
+		Square newSquare = new Square(closestSquareTransform.name);
+		Vector2Int to = new Vector2Int(newSquare.File, newSquare.Rank);
+
+		// Send to server
+		NetworkChessManager.Instance.RequestMoveServerRpc(from, to);
 	}
 }

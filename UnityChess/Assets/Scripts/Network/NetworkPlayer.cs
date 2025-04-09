@@ -50,7 +50,7 @@ public class NetworkPlayer : NetworkBehaviour
             if (string.IsNullOrEmpty(localUserId))
             {
                 // If none stored, generate once
-                localUserId = "User_" + Random.Range(1000, 9999);
+                localUserId = "User_" + Random.Range(1000,9999);
                 PlayerPrefs.SetString("LocalUserId", localUserId);
                 PlayerPrefs.Save();
             }
@@ -88,6 +88,6 @@ public class NetworkPlayer : NetworkBehaviour
 
     public bool IsMyTurn()
     {
-        return NetworkTurnManager.Instance.CanMove(IsWhite.Value);
+        return TurnManager.Instance.CanMove(IsWhite.Value);
     }
 }

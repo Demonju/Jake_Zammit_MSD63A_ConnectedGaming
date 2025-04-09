@@ -1,2 +1,0 @@
-# Jake_Zammit_MSD63A_ConnectedGaming
-Connected Gaming Assignment
