@@ -38,9 +38,11 @@ public class UIManager : MonoBehaviourSingleton<UIManager> {
 	[SerializeField, Range(-0.25f, 0.25f)] private float moveHistoryAlternateColorDarkenAmount = 0f;
 	
 	[SerializeField] private Button resignButton;
-	
-	// Timeline to keep track of the full move UI elements in sequence.
-	private Timeline<FullMoveUI> moveUITimeline;
+
+    [SerializeField] private Button storeButton;
+
+    // Timeline to keep track of the full move UI elements in sequence.
+    private Timeline<FullMoveUI> moveUITimeline;
 	// Computed button colour based on the background colour and darkening factor.
 	private Color buttonColor;
 
@@ -323,4 +325,5 @@ public class UIManager : MonoBehaviourSingleton<UIManager> {
 			resignButton.interactable = false;
 		}
 	}
+
 }

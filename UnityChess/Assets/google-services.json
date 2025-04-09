@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1007643830711",
+    "project_id": "cg-dlc-jake",
+    "storage_bucket": "cg-dlc-jake.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1007643830711:android:469298f342d4faadefa032",
+        "android_client_info": {
+          "package_name": "cg.dlc.a63"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyApB_HyEgKnN2YOIaN1rKAyIFR7NF2cuho"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
