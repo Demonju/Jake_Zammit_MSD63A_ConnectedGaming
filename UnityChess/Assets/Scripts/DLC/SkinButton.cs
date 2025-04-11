@@ -36,6 +36,7 @@ public class SkinButton : MonoBehaviour
 
             // Now pass both the skin file name and the player side
             SkinLoader.Instance.ApplySkinFromFirebase(skinFileName, playerSide);
+            NetworkPlayer.LocalInstance.SetEquippedSkinServerRpc(skinFileName);
 
             // Disable the button and change the text to "Purchased"
             button.interactable = false;

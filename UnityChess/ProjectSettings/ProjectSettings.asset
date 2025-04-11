@@ -947,11 +947,11 @@ PlayerSettings:
   apiCompatibilityLevel: 3
   activeInputHandler: 0
   windowsGamepadBackendHint: 0
-  cloudProjectId: 52d5f96d-5fb0-4276-980b-0beedc6ca636
+  cloudProjectId: bc78733d-f068-4c9d-abb4-b80d05a383da
   framebufferDepthMemorylessMode: 0
   qualitySettingsNames: []
   projectName: UnityChess
-  organizationId: arid-sea
+  organizationId: jakezammit1504
   cloudEnabled: 0
   legacyClampBlendShapeWeights: 1
   hmiLoadingImage: {fileID: 0}

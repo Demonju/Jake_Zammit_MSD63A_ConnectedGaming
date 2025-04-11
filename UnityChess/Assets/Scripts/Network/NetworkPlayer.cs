@@ -2,6 +2,7 @@ using Unity.Netcode;
 using UnityEngine;
 using Unity.Collections;
 using System.Collections;
+using UnityChess;
 
 public class NetworkPlayer : NetworkBehaviour
 {
@@ -9,6 +10,8 @@ public class NetworkPlayer : NetworkBehaviour
 
     public NetworkVariable<FixedString64Bytes> PlayerUniqueID = new("", NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
     public NetworkVariable<bool> IsWhite = new(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+    public NetworkVariable<FixedString64Bytes> EquippedSkinFileName = new("", NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
 
     private const string UserIdKey = "LocalUserId";
 
@@ -22,7 +25,24 @@ public class NetworkPlayer : NetworkBehaviour
             LocalInstance = this;
             Invoke(nameof(SetupPlayer), 0.1f);
         }
+
+        EquippedSkinFileName.OnValueChanged += OnSkinChanged;
+
+        // Apply skin immediately if already set
+        if (!string.IsNullOrEmpty(EquippedSkinFileName.Value.ToString()))
+            OnSkinChanged("", EquippedSkinFileName.Value.ToString());
     }
+
+    private void OnSkinChanged(FixedString64Bytes oldSkin, FixedString64Bytes newSkin)
+    {
+        if (string.IsNullOrEmpty(newSkin.ToString())) return;
+
+        // Use player color from IsWhite
+        Side side = IsWhite.Value ? Side.White : Side.Black;
+        SkinLoader.Instance.ApplySkinFromFirebase(newSkin.ToString(), side);
+    }
+
+
 
     private void SetupPlayer()
     {
@@ -61,4 +81,11 @@ public class NetworkPlayer : NetworkBehaviour
     }
 
     public bool IsMyTurn() => TurnManager.Instance.CanMove(IsWhite.Value);
+
+    [ServerRpc(RequireOwnership = false)]
+    public void SetEquippedSkinServerRpc(string skinFileName)
+    {
+        EquippedSkinFileName.Value = skinFileName;
+    }
+
 }
