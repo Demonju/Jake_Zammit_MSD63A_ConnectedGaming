@@ -17,11 +17,14 @@ public class GameManager : MonoBehaviourSingleton<GameManager> {
 	public static event Action GameEndedEvent;
 	public static event Action GameResetToHalfMoveEvent;
 	public static event Action MoveExecutedEvent;
-	
-	/// <summary>
-	/// Gets the current board state from the game.
-	/// </summary>
-	public Board CurrentBoard {
+
+    public float gameStartTime;
+    private bool isOnlineGame;
+
+    /// <summary>
+    /// Gets the current board state from the game.
+    /// </summary>
+    public Board CurrentBoard {
 		get {
 			// Attempts to retrieve the current board from the board timeline.
 			game.BoardTimeline.TryGetCurrent(out Board currentBoard);
@@ -127,20 +130,28 @@ public class GameManager : MonoBehaviourSingleton<GameManager> {
 		unityChessDebug.enabled = true;
 #endif
 	}
-	
-	/// <summary>
-	/// Starts a new game by creating a new game instance and invoking the NewGameStartedEvent.
-	/// </summary>
-	public async void StartNewGame() {
-		game = new Game();
-		NewGameStartedEvent?.Invoke();
-	}
 
-	/// <summary>
-	/// Serialises the current game state using the selected serialization format.
-	/// </summary>
-	/// <returns>A string representing the serialised game state.</returns>
-	public string SerializeGame() {
+    /// <summary>
+    /// Starts a new game by creating a new game instance and invoking the NewGameStartedEvent.
+    /// </summary>
+    public void StartNewGame(bool isOnline = false)
+    {
+        game = new Game();
+        gameStartTime = Time.time;
+        isOnlineGame = isOnline;
+
+        // Track match start
+        Side playerSide = SideToMove;
+        AnalyticsManager.Instance.TrackMatchStart(isOnline, playerSide);
+
+        NewGameStartedEvent?.Invoke();
+    }
+
+    /// <summary>
+    /// Serialises the current game state using the selected serialization format.
+    /// </summary>
+    /// <returns>A string representing the serialised game state.</returns>
+    public string SerializeGame() {
 		return serializersByType.TryGetValue(selectedSerializationType, out IGameSerializer serializer)
 			? serializer?.Serialize(game)
 			: null;
@@ -182,52 +193,63 @@ public class GameManager : MonoBehaviourSingleton<GameManager> {
 		GameResetToHalfMoveEvent?.Invoke();
 	}
 
-	/// <summary>
-	/// Attempts to execute a given move in the game.
-	/// </summary>
-	/// <param name="move">The move to execute.</param>
-	/// <returns>True if the move was successfully executed; otherwise, false.</returns>
-	public bool TryExecuteMove(Movement move) {
-		if (!game.TryExecuteMove(move)) {
-			return false;
-		}
+    /// <summary>
+    /// Attempts to execute a given move in the game.
+    /// </summary>
+    /// <param name="move">The move to execute.</param>
+    /// <returns>True if the move was successfully executed; otherwise, false.</returns>
+    public bool TryExecuteMove(Movement move)
+    {
+        if (!game.TryExecuteMove(move))
+        {
+            return false;
+        }
 
-		HalfMoveTimeline.TryGetCurrent(out HalfMove latestHalfMove);
-		if (latestHalfMove.CausedCheckmate) {
-			BoardManager.Instance.SetActiveAllPieces(false);
-			GameEndedEvent?.Invoke();
+        HalfMoveTimeline.TryGetCurrent(out HalfMove latestHalfMove);
 
-			// NEW: Let the server announce "checkmate" to all
-			if (NetworkManager.Singleton.IsServer) {
-				// The side that did the move is latestHalfMove.Piece.Owner
-				string winningSide = latestHalfMove.Piece.Owner.ToString();
-				NetworkChessManager.Instance.AnnounceOutcomeServerRpc($"{winningSide} wins by checkmate!");
-			}
-		}
-		else if (latestHalfMove.CausedStalemate) {
-			BoardManager.Instance.SetActiveAllPieces(false);
-			GameEndedEvent?.Invoke();
+        // Track game end conditions
+        if (latestHalfMove.CausedCheckmate || latestHalfMove.CausedStalemate)
+        {
+            string outcome = latestHalfMove.CausedCheckmate ?
+                $"{(latestHalfMove.Piece.Owner == Side.White ? "White" : "Black")} wins by checkmate" :
+                "Game drawn by stalemate";
 
-			// NEW: Let the server announce "stalemate"
-			if (NetworkManager.Singleton.IsServer) {
-				NetworkChessManager.Instance.AnnounceOutcomeServerRpc("Game drawn by stalemate!");
-			}
-		}
-		else {
-			// Otherwise, ensure that only the pieces of the side to move are enabled.
-			BoardManager.Instance.EnsureOnlyPiecesOfSideAreEnabled(SideToMove);
-		}
+            TrackGameEnd(outcome);
 
-		MoveExecutedEvent?.Invoke();
-		return true;
-	}
-	
-	/// <summary>
-	/// Handles special move behaviour asynchronously (castling, en passant, and promotion).
-	/// </summary>
-	/// <param name="specialMove">The special move to process.</param>
-	/// <returns>A task that resolves to true if the special move was handled; otherwise, false.</returns>
-	private async Task<bool> TryHandleSpecialMoveBehaviourAsync(SpecialMove specialMove) {
+            BoardManager.Instance.SetActiveAllPieces(false);
+            GameEndedEvent?.Invoke();
+
+            if (NetworkManager.Singleton.IsServer)
+            {
+                NetworkChessManager.Instance.AnnounceOutcomeServerRpc(outcome);
+            }
+        }
+        else
+        {
+            BoardManager.Instance.EnsureOnlyPiecesOfSideAreEnabled(SideToMove);
+        }
+
+        MoveExecutedEvent?.Invoke();
+        return true;
+    }
+
+    private void TrackGameEnd(string outcome)
+    {
+        float durationSeconds = Time.time - gameStartTime;
+
+        // Safely get player side with null check and default value
+        bool? isWhite = NetworkPlayer.LocalInstance?.IsWhite.Value;
+        Side playerSide = (isWhite.HasValue && isWhite.Value) ? Side.White : Side.Black;
+
+        AnalyticsManager.Instance.TrackMatchEnd(isOnlineGame, playerSide, outcome, durationSeconds);
+    }
+
+    /// <summary>
+    /// Handles special move behaviour asynchronously (castling, en passant, and promotion).
+    /// </summary>
+    /// <param name="specialMove">The special move to process.</param>
+    /// <returns>A task that resolves to true if the special move was handled; otherwise, false.</returns>
+    private async Task<bool> TryHandleSpecialMoveBehaviourAsync(SpecialMove specialMove) {
 		switch (specialMove) {
 			// Handle castling move.
 			case CastlingMove castlingMove:

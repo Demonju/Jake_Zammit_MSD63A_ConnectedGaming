@@ -135,7 +135,14 @@ public class NetworkChessManager : NetworkBehaviour
         if (player == null) return;
 
         bool isWhite = player.IsWhite.Value;
-        AnnounceOutcomeServerRpc($"{(isWhite ? "Black" : "White")} wins by resignation! ({(isWhite ? "White" : "Black")} resigned)");
+        string outcome = $"{(isWhite ? "Black" : "White")} wins by resignation";
+
+        // Track the resignation
+        float durationSeconds = Time.time - GameManager.Instance.gameStartTime;
+        AnalyticsManager.Instance.TrackMatchEnd(true, isWhite ? Side.White : Side.Black,
+            "resignation", durationSeconds);
+
+        AnnounceOutcomeServerRpc(outcome);
     }
 
     [ServerRpc(RequireOwnership = false)]
@@ -177,5 +184,6 @@ public class NetworkChessManager : NetworkBehaviour
             pieceGO.transform.position = pieceGO.transform.parent.position;
         }
     }
+
 }
 
