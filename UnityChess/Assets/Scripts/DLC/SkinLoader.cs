@@ -40,7 +40,6 @@ public class SkinLoader : MonoBehaviour
         }
     }
 
-
     public void ApplyMaterialToPlayerPieces(Material material, Side playerSide)
     {
         VisualPiece[] pieces = FindObjectsOfType<VisualPiece>(true); // Get all pieces
@@ -60,8 +59,6 @@ public class SkinLoader : MonoBehaviour
             }
         }
     }
-
-
 
     private async Task<string> DownloadSkinTexture(string fileName)
     {
@@ -107,8 +104,5 @@ public class SkinLoader : MonoBehaviour
             await ApplySkinFromFirebase(fileName, playerSide);
         }
     }
-
-
-
 }
 

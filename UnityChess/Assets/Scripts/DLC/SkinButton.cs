@@ -1,6 +1,7 @@
 using UnityChess;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 public class SkinButton : MonoBehaviour
 {
@@ -8,10 +9,19 @@ public class SkinButton : MonoBehaviour
     [SerializeField] private int skinPrice = 500;
 
     private Button button;
+    private TextMeshProUGUI buttonText; // Changed to TMP
 
     void Start()
     {
         button = GetComponent<Button>();
+        // Find the TextMeshProUGUI component in the button's child
+        buttonText = button.GetComponentInChildren<TextMeshProUGUI>();
+
+        if (buttonText == null)
+        {
+            Debug.LogWarning("No TextMeshProUGUI component found in button's children!");
+        }
+
         button.onClick.AddListener(OnClickBuySkin);
     }
 
@@ -26,8 +36,23 @@ public class SkinButton : MonoBehaviour
 
             // Now pass both the skin file name and the player side
             SkinLoader.Instance.ApplySkinFromFirebase(skinFileName, playerSide);
+
+            // Disable the button and change the text to "Purchased"
+            button.interactable = false;
+
+            if (buttonText != null)
+            {
+                buttonText.text = "Owned";
+            }
+        }
+        else
+        {
+            Debug.Log("Not enough credits!");
         }
     }
 }
+
+
+
 
 
