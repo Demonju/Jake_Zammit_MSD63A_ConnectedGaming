@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityChess;
 using UnityEngine;
@@ -71,33 +72,39 @@ public class UIManager : MonoBehaviourSingleton<UIManager> {
 		);
 	}
 
-	/// <summary>
-	/// Handles the event when a new game starts.
-	/// Clears previous move history, updates UI fields, and resets result text.
-	/// </summary>
-	private void OnNewGameStarted() {
-		// Update the serialized game string input field.
-		UpdateGameStringInputField();
-		// Validate turn indicator images.
-		ValidateIndicators();
-		
-		// Clear all child GameObjects under the move history parent.
-		for (int i = 0; i < moveHistoryContentParent.transform.childCount; i++) {
-			Destroy(moveHistoryContentParent.transform.GetChild(i).gameObject);
-		}
-		
-		// Clear the move UI timeline.
-		moveUITimeline.Clear();
+    /// <summary>
+    /// Handles the event when a new game starts.
+    /// Clears previous move history, updates UI fields, and resets result text.
+    /// </summary>
+    private void OnNewGameStarted()
+    {
+        // Delay the update to avoid changing UI text during graphic rebuild
+        StartCoroutine(DelayedGameStringUpdate());
 
-		// Hide the result text (game outcome) since the game has just started.
-		resultText.gameObject.SetActive(false);
-	}
+        ValidateIndicators();
 
-	/// <summary>
-	/// Handles the event when the game ends (via checkmate or stalemate).
-	/// Displays the game outcome message.
-	/// </summary>
-	private void OnGameEnded() {
+        // Clear previous move history UI
+        for (int i = 0; i < moveHistoryContentParent.transform.childCount; i++)
+        {
+            Destroy(moveHistoryContentParent.transform.GetChild(i).gameObject);
+        }
+
+        moveUITimeline.Clear();
+        resultText.gameObject.SetActive(false);
+    }
+
+    private IEnumerator DelayedGameStringUpdate()
+    {
+        yield return null; // wait for 1 frame
+        UpdateGameStringInputField();
+    }
+
+
+    /// <summary>
+    /// Handles the event when the game ends (via checkmate or stalemate).
+    /// Displays the game outcome message.
+    /// </summary>
+    private void OnGameEnded() {
 		// Retrieve the latest half-move from the game timeline.
 		GameManager.Instance.HalfMoveTimeline.TryGetCurrent(out HalfMove latestHalfMove);
 
